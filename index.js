@@ -1,65 +1,78 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const app = express();
-const port = 3000;
+const mongoose = require('mongoose');
+const Todo = require('./models/Todo');
 
-app.use(cors());
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors({
+  origin: 'http://localhost:5173' // Vite frontend
+}));
 app.use(express.json());
 
-// In-memory storage for todos
-let todos = [];
-let nextId = 1;
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log(' Connected to MongoDB'))
+  .catch(err => console.error(' MongoDB connection error:', err));
 
-// GET /todos - Retrieve all todos
-app.get('/todos', (req, res) => {
-  res.json(todos);
+// GET all todos
+app.get('/todos', async (req, res) => {
+  try {
+    const todos = await Todo.find().sort({ createdAt: -1 });
+    res.json(todos);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch todos' });
+  }
 });
 
-// POST /todos - Create a new todo
-app.post('/todos', (req, res) => {
-  const { title } = req.body;
-  if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
+// CREATE todo
+app.post('/todos', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Text is required' });
+
+  try {
+    const newTodo = await Todo.create({ text });
+    res.status(201).json(newTodo);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create todo' });
   }
-  const newTodo = {
-    id: nextId++,
-    title,
-    completed: false
-  };
-  todos.push(newTodo);
-  res.status(201).json(newTodo);
 });
 
-// PUT /todos/:id - Update a todo
-app.put('/todos/:id', (req, res) => {
-  const { id } = req.params;
-  const { title, completed } = req.body;
-  const todoIndex = todos.findIndex(t => t.id === parseInt(id));
+// UPDATE todo
+app.put('/todos/:id', async (req, res) => {
+  try {
+    const updatedTodo = await Todo.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
 
-  if (todoIndex === -1) {
-    return res.status(404).json({ error: 'Todo not found' });
+    if (!updatedTodo) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
+
+    res.json(updatedTodo);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update todo' });
   }
-
-  const todo = todos[todoIndex];
-  if (title !== undefined) todo.title = title;
-  if (completed !== undefined) todo.completed = completed;
-
-  res.json(todo);
 });
 
-// DELETE /todos/:id - Delete a todo
-app.delete('/todos/:id', (req, res) => {
-  const { id } = req.params;
-  const todoIndex = todos.findIndex(t => t.id === parseInt(id));
-
-  if (todoIndex === -1) {
-    return res.status(404).json({ error: 'Todo not found' });
+// DELETE todo
+app.delete('/todos/:id', async (req, res) => {
+  try {
+    const deleted = await Todo.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete todo' });
   }
-
-  todos.splice(todoIndex, 1);
-  res.status(204).send();
 });
 
 app.listen(port, () => {
-  console.log(`https://localhost:${port}`);
+  console.log(`🚀 Server running at http://localhost:${port}`);
 });
