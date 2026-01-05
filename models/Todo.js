@@ -9,6 +9,11 @@ const todoSchema = new mongoose.Schema(
     completed: {
       type: Boolean,
       default: false
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
     }
   },
   { timestamps: true } // adds createdAt & updatedAt

@@ -4,6 +4,10 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const Todo = require('./models/Todo');
 
+const authRoutes = require('./routes/authRoutes');
+const todoRoutes = require('./routes/todoRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -13,65 +17,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/todos', todoRoutes);
+app.use('/api/admin', adminRoutes);
+
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log(' Connected to MongoDB'))
   .catch(err => console.error(' MongoDB connection error:', err));
-
-// GET all todos
-app.get('/todos', async (req, res) => {
-  try {
-    const todos = await Todo.find().sort({ createdAt: -1 });
-    res.json(todos);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch todos' });
-  }
-});
-
-// CREATE todo
-app.post('/todos', async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'Text is required' });
-
-  try {
-    const newTodo = await Todo.create({ text });
-    res.status(201).json(newTodo);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create todo' });
-  }
-});
-
-// UPDATE todo
-app.put('/todos/:id', async (req, res) => {
-  try {
-    const updatedTodo = await Todo.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-
-    if (!updatedTodo) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
-
-    res.json(updatedTodo);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update todo' });
-  }
-});
-
-// DELETE todo
-app.delete('/todos/:id', async (req, res) => {
-  try {
-    const deleted = await Todo.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete todo' });
-  }
-});
 
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
